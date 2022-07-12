@@ -1,6 +1,11 @@
-import { XMLParser } from "fast-xml-parser";
+import "dotenv/config";
 import axios from "axios";
 import urlencode from "urlencode";
+import { PromisePool } from "@supercharge/promise-pool";
+import mongoose from "mongoose";
+import { MongoClient } from "mongodb";
+console.log(process.env.MONGO);
+await mongoose.connect(process.env.MONGO);
 const years = [
   "2013/14",
   "2014/15",
@@ -13,17 +18,6 @@ const years = [
   "2021/22",
 ];
 async function parseXML() {
-  // const data = await axios.get(url);
-
-  // const res = data.data;
-
-  // console.log(res.anforandelista.anforande);
-  // console.log(res.anforandelista.anforande[0].dok_datum);
-  // console.log(
-  //   res.anforandelista.anforande[res.anforandelista.anforande.length - 1]
-  //     .dok_datum
-  // );
-
   const urls = Promise.all(
     years.map(async (elem) => {
       const url = `https://data.riksdagen.se/anforandelista/?rm=${urlencode(
@@ -43,21 +37,29 @@ async function parseXML() {
 }
 
 async function getText(res) {
-  const data = await axios.get(res[0]);
-  console.log(data.data.anfo); // funkar
+  await PromisePool.for(res).process(async (datas) => {
+    const data = await axios.get(datas);
+    const resp = data.data;
+    const obj = {
+      dok_id: resp.anforande.dok_id,
+      id: resp.anforande.anforande_id,
+      url: resp.anforande.protokoll_url_www,
+      party: resp.anforande.parti,
+      speaker: resp.anforande.talare,
+      date: resp.anforande.dok_datum,
+      title: resp.anforande.dok_titel,
+      text: resp.anforande.anforandetext,
+    };
+    MongoClient.connect(process.env.MONGO, function (err, db) {
+      if (err) throw err;
+      var dbo = db.db("sosse");
 
-  console.log(res);
-  res.map(async (elem) => {
-    setTimeout(async () => {
-      const data = await axios.get(elem);
-      const res = data.data;
-      const text = res.anforandetext;
-      console.log(text);
-    }),
-      2000;
+      dbo.collection("sosse").insertOne(obj, function (err, res) {
+        if (err) throw err;
+        db.close();
+      });
+    });
   });
 }
-const url2 =
-  "https://data.riksdagen.se/anforandelista/?rm=&anftyp=nej&d=2000-01-01&ts=1990-01-01&parti=s&iid=&sz=100000&utformat=json";
-const url = "https://data.riksdagen.se/anforande/H909139-40";
-await parseXML();
+
+console.log(await parseXML());
