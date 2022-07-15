@@ -2,10 +2,10 @@ import "dotenv/config";
 import axios from "axios";
 import urlencode from "urlencode";
 import { PromisePool } from "@supercharge/promise-pool";
-import mongoose from "mongoose";
+
 import { MongoClient } from "mongodb";
 console.log(process.env.MONGO);
-await mongoose.connect(process.env.MONGO);
+
 const years = [
   "2013/14",
   "2014/15",
@@ -52,7 +52,7 @@ async function getText(res) {
     };
     MongoClient.connect(process.env.MONGO, function (err, db) {
       if (err) throw err;
-      var dbo = db.db("sosse");
+      const dbo = db.db("sosse");
 
       dbo.collection("sosse").insertOne(obj, function (err, res) {
         if (err) throw err;
@@ -62,4 +62,25 @@ async function getText(res) {
   });
 }
 
-console.log(await parseXML());
+// console.log(await parseXML());
+async function search() {
+  MongoClient.connect(process.env.MONGO, async function (err, db) {
+    if (err) throw err;
+    const dbo = db.db("sosse");
+    const sosse = dbo.collection("sosse");
+    const index = await sosse.createIndex({ text: "text" });
+    const projection = {
+      _id: 0,
+      text: 1,
+    };
+    const cursor = await sosse
+      .find({ $text: { $search: "Löfven" } })
+      .project(projection);
+    console.log(
+      `Hittade ${await cursor.count()} dokument med ordet "Löfven" i: \n \n`
+    );
+
+    return cursor;
+  });
+}
+console.log(await search());
