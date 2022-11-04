@@ -1,6 +1,5 @@
 {
   "name": "sosse-parser",
-  "type": "module",
   "version": "1.0.0",
   "description": "",
   "main": "index.js",
@@ -15,5 +14,8 @@
     "dotenv": "^16.0.1",
     "mongodb": "^4.7.0",
     "urlencode": "^1.1.0"
+  },
+  "devDependencies": {
+    "typescript": "^4.8.4"
   }
 }
